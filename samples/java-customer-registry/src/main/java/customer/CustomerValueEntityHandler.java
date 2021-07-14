@@ -19,16 +19,13 @@ package customer;
 import com.akkaserverless.javasdk.impl.AnySupport;
 import com.akkaserverless.javasdk.impl.EntityExceptions;
 import com.akkaserverless.javasdk.impl.valueentity.AdaptedCommandContext;
+import com.akkaserverless.javasdk.impl.FailInvoked$;
 import com.akkaserverless.javasdk.lowlevel.ValueEntityHandler;
 import com.akkaserverless.javasdk.valueentity.CommandContext;
 import com.akkaserverless.javasdk.valueentity.ValueEntityBase;
-import com.google.protobuf.Any;
-import com.google.protobuf.Descriptors;
-import com.google.protobuf.GeneratedMessageV3;
+import com.google.protobuf.*;
 import customer.api.CustomerApi;
 import customer.domain.CustomerDomain;
-import scala.None$;
-import scala.Option;
 import scalapb.UnknownFieldSet;
 
 /**
@@ -36,29 +33,20 @@ import scalapb.UnknownFieldSet;
  * by the user.
  */
 public class CustomerValueEntityHandler implements ValueEntityHandler {
+
   final CustomerValueEntity entity;
-  final AnySupport anySupport;
 
   public static final Descriptors.ServiceDescriptor serviceDescriptor =
       CustomerApi.getDescriptor().findServiceByName("CustomerService");
   public static final String entityType = "customers";
 
-  CustomerValueEntityHandler(CustomerValueEntity entity) {
-    this.entity = entity;
-    this.anySupport =
-        new AnySupport(
-            new Descriptors.FileDescriptor[] {CustomerDomain.getDescriptor()},
-            CustomerValueEntityHandler.class.getClassLoader(),
-            AnySupport.DefaultTypeUrlPrefix(),
-            AnySupport.PREFER_JAVA());
+  CustomerValueEntityHandler() {
+    this.entity = new CustomerValueEntity();
   }
 
   @Override
   public ValueEntityBase.Effect<? extends GeneratedMessageV3> handleCommand(
       Any command, Any state, CommandContext<Any> context) throws Throwable {
-
-    AdaptedCommandContext<CustomerDomain.CustomerState> adaptedContext =
-        new AdaptedCommandContext(context, anySupport);
 
     CustomerDomain.CustomerState parsedState =
         CustomerDomain.CustomerState.parseFrom(state.getValue());
@@ -81,7 +69,6 @@ public class CustomerValueEntityHandler implements ValueEntityHandler {
             parsedState,
             adaptedContext);
       default:
-        Option<?> noneOption = None$.MODULE$;
         throw new EntityExceptions.EntityException(
             context.entityId(),
             context.commandId(),
@@ -89,8 +76,7 @@ public class CustomerValueEntityHandler implements ValueEntityHandler {
             "No command handler found for command ["
                 + context.commandName()
                 + "] on "
-                + entity.getClass().toString(),
-            (Option<Throwable>) noneOption);
+                + entity.getClass().toString());
     }
   }
 
@@ -102,37 +88,5 @@ public class CustomerValueEntityHandler implements ValueEntityHandler {
             + CustomerDomain.CustomerState.getDescriptor().getFullName(),
         entity.emptyState().toByteString(),
         UnknownFieldSet.empty());
-  }
-
-  public ValueEntityBase.Effect<? extends GeneratedMessageV3> invoke(
-      Any command,
-      CustomerDomain.CustomerState state,
-      CommandContext<CustomerDomain.CustomerState> context)
-      throws Throwable {
-    switch (context.commandName()) {
-      case "Create":
-        return entity.create(
-            // TODO we used to support any 'Jsonable' class here as well, parsing them with Jackson,
-            // and also ScalaPB classes.
-            // are we OK with restriction ourselves to actual Java protobuf classes?
-            CustomerApi.Customer.parseFrom(command.getValue()), state, context);
-      case "ChangeName":
-        return entity.changeName(
-            CustomerApi.ChangeNameRequest.parseFrom(command.getValue()), state, context);
-      case "GetCustomer":
-        return entity.getCustomer(
-            CustomerApi.GetCustomerRequest.parseFrom(command.getValue()), state, context);
-      default:
-        Option<?> noneOption = None$.MODULE$;
-        throw new EntityExceptions.EntityException(
-            context.entityId(),
-            context.commandId(),
-            context.commandName(),
-            "No command handler found for command ["
-                + context.commandName()
-                + "] on "
-                + entity.getClass().toString(),
-            (Option<Throwable>) noneOption);
-    }
   }
 }
