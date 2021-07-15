@@ -16,7 +16,6 @@
 
 package customer;
 
-import com.akkaserverless.javasdk.valueentity.CommandContext;
 import com.google.protobuf.Empty;
 import customer.api.CustomerApi;
 import customer.domain.CustomerDomain;

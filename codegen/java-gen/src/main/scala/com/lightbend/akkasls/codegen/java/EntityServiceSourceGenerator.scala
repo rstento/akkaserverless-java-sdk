@@ -148,7 +148,7 @@ object EntityServiceSourceGenerator {
       case eventSourcedEntity: EventSourcedEntity =>
         eventSourcedEntitySource(service, eventSourcedEntity, packageName, className, interfaceClassName, entityType)
       case valueEntity: ValueEntity =>
-        valueEntitySource(service, valueEntity, packageName, className, interfaceClassName, entityType)
+        ValueEntitySourceGenerator.valueEntitySource(service, valueEntity, packageName, className, interfaceClassName)
     }
   }
 
@@ -268,91 +268,20 @@ object EntityServiceSourceGenerator {
     )
   }
 
-  private[codegen] def valueEntitySource(
-      service: ModelBuilder.EntityService,
-      entity: ModelBuilder.ValueEntity,
-      packageName: String,
-      className: String,
-      interfaceClassName: String,
-      entityType: String
-  ): Document = {
+  private[codegen] def generateImports(service: ModelBuilder.EntityService,
+                                       entity: ModelBuilder.ValueEntity,
+                                       packageName: String)(otherImports: Seq[String]): Doc = {
     val messageTypes = service.commands.toSeq
         .flatMap(command => Seq(command.inputType, command.outputType)) ++ Seq(entity.state.fqn)
-
-    val imports = (messageTypes
+    val messageTypeImports = messageTypes
       .filterNot(_.parent.javaPackage == packageName)
-      .map(typeImport) ++
-    Seq(
-      "com.akkaserverless.javasdk.EntityId",
-      "com.akkaserverless.javasdk.Reply",
-      "com.akkaserverless.javasdk.valueentity.*"
-    )).distinct.sorted
+      .map(typeImport)
 
-    pretty(
-      initialisedCodeComment <> line <> line <>
-      "package" <+> packageName <> semi <> line <>
-      line <>
-      ssep(
-        imports.map(pkg => "import" <+> pkg <> semi),
-        line
-      ) <> line <>
-      line <>
-      "/** A value entity. */" <> line <>
-      "@ValueEntity" <> parens(
-        "entityType" <+> equal <+> dquotes(entityType)
-      )
-      <> line <>
-      `class`("public", s"$className extends $interfaceClassName") {
-        "@SuppressWarnings" <> parens(dquotes("unused")) <> line <>
-        "private" <+> "final" <+> "String" <+> "entityId" <> semi <> line <>
-        line <>
-        constructor(
-          "public",
-          className,
-          List("@EntityId" <+> "String" <+> "entityId")
-        ) {
-          "this.entityId" <+> equal <+> "entityId" <> semi
-        } <> line <>
-        line <>
-        "@Override" <>
-        line <>
-        method(
-          "public",
-          qualifiedType(entity.state.fqn),
-          "emptyState",
-          Nil,
-          emptyDoc
-        )(
-          "throw new UnsupportedOperationException" <> parens(
-            dquotes("Not implemented yet, replace with your empty entity state")
-          ) <> semi
-        ) <>
-        line <>
-        line <>
-        ssep(
-          service.commands.toSeq.map {
-            command =>
-              "@Override" <>
-              line <>
-              method(
-                "public",
-                "Effect" <> angles(qualifiedType(command.outputType)),
-                lowerFirst(command.fqn.name),
-                List(
-                  qualifiedType(entity.state.fqn) <+> "currentState",
-                  qualifiedType(command.inputType) <+> lowerFirst(command.inputType.name)
-                ),
-                emptyDoc
-              ) {
-                "return effects().error" <> parens(
-                  "\"The command handler for `" + command.fqn.name + "` is not implemented, yet\""
-                ) <> semi
-              }
-          },
-          line <> line
-        )
-      }
-    )
+    val imports =
+      (messageTypeImports ++ otherImports).distinct.sorted
+        .map(pkg => text(s"import $pkg;"))
+
+    ssep(imports, line)
   }
 
   private[codegen] def interfaceSource(
@@ -365,59 +294,8 @@ object EntityServiceSourceGenerator {
       case eventSourcedEntity: ModelBuilder.EventSourcedEntity =>
         abstractEventSourcedEntity(service, eventSourcedEntity, packageName, className)
       case valueEntity: ModelBuilder.ValueEntity =>
-        abstractValueEntity(service, valueEntity, packageName, className)
+        ValueEntitySourceGenerator.abstractValueEntity(service, valueEntity, packageName, className)
     }
-
-  private[codegen] def abstractValueEntity(
-      service: ModelBuilder.EntityService,
-      entity: ModelBuilder.ValueEntity,
-      packageName: String,
-      className: String
-  ): Document = {
-    val messageTypes = service.commands.toSeq
-        .flatMap(command => Seq(command.inputType, command.outputType)) ++ Seq(entity.state.fqn)
-
-    val imports = (messageTypes
-      .filterNot(_.parent.javaPackage == packageName)
-      .map(typeImport) ++
-    Seq(
-      "com.akkaserverless.javasdk.EntityId",
-      "com.akkaserverless.javasdk.Reply",
-      "com.akkaserverless.javasdk.valueentity.*"
-    )).distinct.sorted
-
-    pretty(
-      managedCodeComment <> line <> line <>
-      "package" <+> packageName <> semi <> line <>
-      line <>
-      ssep(
-        imports.map(pkg => "import" <+> pkg <> semi),
-        line
-      ) <> line <>
-      line <>
-      "/** A value entity. */"
-      <> line <>
-      `class`("public abstract", "Abstract" + className, "ValueEntityBase<" + qualifiedType(entity.state.fqn) + ">") {
-        line <>
-        ssep(
-          service.commands.toSeq.map { command =>
-            "@CommandHandler" <>
-            line <>
-            abstractMethod(
-              "public",
-              "Effect" <> angles(qualifiedType(command.outputType)),
-              lowerFirst(command.fqn.name),
-              List(
-                qualifiedType(entity.state.fqn) <+> "currentState",
-                qualifiedType(command.inputType) <+> lowerFirst(command.inputType.name)
-              )
-            ) <> semi
-          },
-          line <> line
-        )
-      }
-    )
-  }
 
   private[codegen] def abstractEventSourcedEntity(
       service: ModelBuilder.EntityService,
