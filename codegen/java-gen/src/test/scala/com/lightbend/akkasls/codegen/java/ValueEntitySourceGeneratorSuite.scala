@@ -163,6 +163,17 @@ class ValueEntitySourceGeneratorSuite extends munit.FunSuite {
         |    
         |    try {
         |      switch (context.commandName()) {
+        |        
+        |        case "Set":
+        |          return entity.set(
+        |              parsedState,
+        |              ServiceOuterClass.SetValue.parseFrom(command.getValue));
+        |
+        |        case "Get":
+        |          return entity.get(
+        |              parsedState,
+        |              ServiceOuterClass.GetValue.parseFrom(command.getValue));
+        |
         |        default:
         |          throw new EntityExceptions.EntityException(
         |              context.entityId(),

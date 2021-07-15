@@ -122,6 +122,20 @@ object ValueEntitySourceGenerator {
       )
     )
 
+    val serviceApiOuterClass = service.fqn.parent.javaOuterClassname
+
+    def makeCase(cmd: ModelBuilder.Command) = {
+      val methodName = cmd.fqn.name
+      val inputType = s"$serviceApiOuterClass.${cmd.inputType.name}"
+      // Watch-out, this is special as an indentation sensitive
+      s"""
+        case "$methodName":
+          return entity.${lowerFirst(methodName)}(
+              parsedState,
+              ${inputType}.parseFrom(command.getValue));
+"""
+    }
+
     val outerClassAndState = s"${entity.state.fqn.parent.javaOuterClassname}.${entity.state.fqn.name}"
     pretty(
       managedCodeCommentString <> line <> // fixme: why this can't be in string interpolation?
@@ -156,6 +170,7 @@ object ValueEntitySourceGenerator {
           |    
           |    try {
           |      switch (context.commandName()) {
+          |        ${service.commands.map(makeCase).mkString("")}
           |        default:
           |          throw new EntityExceptions.EntityException(
           |              context.entityId(),
