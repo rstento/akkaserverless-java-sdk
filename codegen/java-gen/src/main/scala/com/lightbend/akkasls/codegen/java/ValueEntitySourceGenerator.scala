@@ -17,6 +17,8 @@
 package com.lightbend.akkasls.codegen.java
 
 import com.lightbend.akkasls.codegen.ModelBuilder
+import com.lightbend.akkasls.codegen.Syntax
+import com.lightbend.akkasls.codegen.Syntax._
 import org.bitbucket.inkytonik.kiama.output.PrettyPrinterTypes.Document
 
 object ValueEntitySourceGenerator {
@@ -123,23 +125,22 @@ object ValueEntitySourceGenerator {
     )
 
     val serviceApiOuterClass = service.fqn.parent.javaOuterClassname
+    val outerClassAndState = s"${entity.fqn.parent.javaOuterClassname}.${entity.state.fqn.name}"
 
-    def makeCase(cmd: ModelBuilder.Command) = {
-      val methodName = cmd.fqn.name
-      val inputType = s"$serviceApiOuterClass.${cmd.inputType.name}"
-      // Watch-out, this is special as an indentation sensitive
-      s"""
-        case "$methodName":
-          return entity.${lowerFirst(methodName)}(
-              parsedState,
-              ${inputType}.parseFrom(command.getValue));
-"""
-    }
+    val cases = service.commands
+      .map { cmd =>
+        val methodName = cmd.fqn.name
+        val inputType = s"$serviceApiOuterClass.${cmd.inputType.name}"
+        s"""case "$methodName":
+         |  return entity.${lowerFirst(methodName)}(
+         |      parsedState,
+         |      ${inputType}.parseFrom(command.getValue));
+         |""".stripMargin
+      }
 
-    val outerClassAndState = s"${entity.state.fqn.parent.javaOuterClassname}.${entity.state.fqn.name}"
     pretty(
-      managedCodeCommentString <> line <> // fixme: why this can't be in string interpolation?
-      s"""|package $packageName;
+      s"""|$managedCodeCommentString
+          |package $packageName;
           |
           |$imports
           |
@@ -170,7 +171,9 @@ object ValueEntitySourceGenerator {
           |    
           |    try {
           |      switch (context.commandName()) {
-          |        ${service.commands.map(makeCase).mkString("")}
+          |
+          |        ${Syntax.indent(cases, 8)}
+          |
           |        default:
           |          throw new EntityExceptions.EntityException(
           |              context.entityId(),
@@ -206,44 +209,46 @@ object ValueEntitySourceGenerator {
       packageName: String,
       className: String
   ): Document = {
-    val messageTypes = service.commands.toSeq
-        .flatMap(command => Seq(command.inputType, command.outputType)) ++ Seq(entity.state.fqn)
 
-    val imports = (messageTypes
-      .filterNot(_.parent.javaPackage == packageName)
-      .map(typeImport) ++
-    Seq(
-      "com.akkaserverless.javasdk.valueentity.ValueEntityBase"
-    )).distinct.sorted
+    val serviceApiOuterClass = service.fqn.parent.javaOuterClassname
+    val outerClassAndState = s"${entity.fqn.parent.javaOuterClassname}.${entity.state.fqn.name}"
+
+    val imports = generateImports(
+      service.commands,
+      Some(entity.state),
+      packageName,
+      otherImports = Seq(
+        "com.akkaserverless.javasdk.valueentity.ValueEntityBase"
+      )
+    )
+
+    val methods = service.commands
+      .map { cmd =>
+        val methodName = cmd.fqn.name
+
+        val inputType = s"$serviceApiOuterClass.${cmd.inputType.name}"
+        val outputType = qualifiedType(cmd.outputType)
+
+        s"""|public abstract Effect<$outputType> ${lowerFirst(methodName)}(
+            |  $outerClassAndState currentState,
+            |  $inputType ${lowerFirst(cmd.inputType.name)});
+            |""".stripMargin
+      }
 
     pretty(
-      managedCodeComment <> line <> line <>
-      "package" <+> packageName <> semi <> line <>
-      line <>
-      ssep(
-        imports.map(pkg => "import" <+> pkg <> semi),
-        line
-      ) <> line <>
-      line <>
-      "/** A value entity. */"
-      <> line <>
-      `class`("public abstract", "Abstract" + className, "ValueEntityBase<" + qualifiedType(entity.state.fqn) + ">") {
-        line <>
-        ssep(
-          service.commands.toSeq.map { command =>
-            abstractMethod(
-              "public",
-              "Effect" <> angles(qualifiedType(command.outputType)),
-              lowerFirst(command.fqn.name),
-              List(
-                qualifiedType(entity.state.fqn) <+> "currentState",
-                qualifiedType(command.inputType) <+> "command"
-              )
-            ) <> semi
-          },
-          line <> line
-        )
-      }
+      s"""|$managedCodeCommentString
+          |package $packageName;
+          |
+          |$imports
+          |
+          |/** A value entity. */
+          |public abstract class AbstractMyService extends ValueEntityBase<$outerClassAndState> {
+          |
+          |  ${Syntax.indent(methods, 2)}
+          |
+          |}
+          |""".stripMargin
     )
+
   }
 }

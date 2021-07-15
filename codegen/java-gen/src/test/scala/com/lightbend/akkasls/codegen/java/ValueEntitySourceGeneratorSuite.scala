@@ -85,11 +85,11 @@ class ValueEntitySourceGeneratorSuite extends munit.FunSuite {
       EntityServiceSourceGenerator.interfaceSource(service, entity, packageName, className)
     assertEquals(
       sourceDoc.layout,
-      """/* This code is managed by Akka Serverless tooling.
+      """
+        |/* This code is managed by Akka Serverless tooling.
         | * It will be re-generated to reflect any changes to your protobuf definitions.
         | * DO NOT EDIT
         | */
-        |
         |package com.example.service;
         |
         |import com.akkaserverless.javasdk.valueentity.ValueEntityBase;
@@ -98,11 +98,17 @@ class ValueEntitySourceGeneratorSuite extends munit.FunSuite {
         |
         |/** A value entity. */
         |public abstract class AbstractMyService extends ValueEntityBase<EntityOuterClass.MyState> {
-        |    
-        |    public abstract Effect<Empty> set(EntityOuterClass.MyState currentState, ServiceOuterClass.SetValue command);
-        |    
-        |    public abstract Effect<ServiceOuterClass.MyState> get(EntityOuterClass.MyState currentState, ServiceOuterClass.GetValue command);
-        |}""".stripMargin
+        |
+        |  public abstract Effect<Empty> set(
+        |    EntityOuterClass.MyState currentState,
+        |    ServiceOuterClass.SetValue setValue);
+        |
+        |  public abstract Effect<ServiceOuterClass.MyState> get(
+        |    EntityOuterClass.MyState currentState,
+        |    ServiceOuterClass.GetValue getValue);
+        |
+        |}
+        |""".stripMargin
     )
   }
 
@@ -163,7 +169,7 @@ class ValueEntitySourceGeneratorSuite extends munit.FunSuite {
         |    
         |    try {
         |      switch (context.commandName()) {
-        |        
+        |
         |        case "Set":
         |          return entity.set(
         |              parsedState,
