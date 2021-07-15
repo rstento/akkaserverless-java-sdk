@@ -126,35 +126,56 @@ class ValueEntitySourceGeneratorSuite extends munit.FunSuite {
         |
         |import com.akkaserverless.javasdk.impl.AnySupport;
         |import com.akkaserverless.javasdk.impl.EntityExceptions;
-        |import com.akkaserverless.javasdk.impl.FailInvoked$;
+        |import com.akkaserverless.javasdk.impl.valueentity.AdaptedCommandContextWithState;
         |import com.akkaserverless.javasdk.lowlevel.ValueEntityHandler;
         |import com.akkaserverless.javasdk.valueentity.CommandContext;
         |import com.akkaserverless.javasdk.valueentity.ValueEntityBase;
+        |import com.akkaserverless.javasdk.valueentity.ValueEntityContext;
         |import com.example.service.persistence.EntityOuterClass;
         |import com.external.Empty;
+        |import com.google.protobuf.Descriptors;
         |import scalapb.UnknownFieldSet;
         |
         |/** A value entity handler */
         |public class MyServiceHandler extends ValueEntityHandler {
         |
-        |  final MyService entity;
+        |  public static final Descriptors.ServiceDescriptor serviceDescriptor =
+        |      ServiceOuterClass.getDescriptor().findServiceByName("MyService");
+        |  public static final String entityType = "MyValueEntity";
+        |
+        |  final MyServiceImpl entity;
         |  
-        |  MyServiceHandler() {
-        |    this.entity = new MyService();
+        |  MyServiceHandler(ValueEntityContext entityContext) {
+        |    this.entity = new MyServiceImpl(entityContext);
         |  }
         |
         |
         |  @Override
         |  public ValueEntityBase.Effect<? extends GeneratedMessageV3> handleCommand(
         |      Any command, Any state, CommandContext<Any> context) throws Throwable {
+        |      
+        |    EntityOuterClass.MyState parsedState =
+        |      EntityOuterClass.MyState.parseFrom(state.getValue());
+        |
+        |    CommandContext<EntityOuterClass.MyState> adaptedContext =
+        |        new AdaptedCommandContextWithState(context, parsedState);
+        |
+        |    entity.setCommandContext(Optional.of(adaptedContext));
+        |    
         |    try {
-        |      return invoke(command, state, context);
-        |    } catch (Exception e) {
-        |      if (e.getClass().isAssignableFrom(FailInvoked$.class)) {
-        |        throw e;
-        |      } else {
-        |        throw e.getCause();
+        |      switch (context.commandName()) {
+        |        default:
+        |          throw new EntityExceptions.EntityException(
+        |              context.entityId(),
+        |              context.commandId(),
+        |              context.commandName(),
+        |              "No command handler found for command ["
+        |                  + context.commandName()
+        |                  + "] on "
+        |                  + entity.getClass().toString());
         |      }
+        |    } finally {
+        |      entity.setCommandContext(Optional.empty;
         |    }
         |  }
         |}""".stripMargin
