@@ -149,7 +149,6 @@ class ValueEntitySourceGeneratorSuite extends munit.FunSuite {
         |    this.entity = new MyServiceImpl(entityContext);
         |  }
         |
-        |
         |  @Override
         |  public ValueEntityBase.Effect<? extends GeneratedMessageV3> handleCommand(
         |      Any command, Any state, CommandContext<Any> context) throws Throwable {
@@ -177,6 +176,16 @@ class ValueEntitySourceGeneratorSuite extends munit.FunSuite {
         |    } finally {
         |      entity.setCommandContext(Optional.empty;
         |    }
+        |  }
+        |  
+        |  @Override
+        |  public com.google.protobuf.any.Any emptyState() {
+        |    return com.google.protobuf.any.Any.apply(
+        |        AnySupport.DefaultTypeUrlPrefix()
+        |          + "/"
+        |          + EntityOuterClass.MyState.getDescriptor().getFullName(),
+        |        entity.emptyState().toByteString(),
+        |        UnknownFieldSet.empty());
         |  }
         |}""".stripMargin
 

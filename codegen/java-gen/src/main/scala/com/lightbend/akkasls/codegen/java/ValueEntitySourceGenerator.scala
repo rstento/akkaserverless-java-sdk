@@ -142,7 +142,6 @@ object ValueEntitySourceGenerator {
           |    this.entity = new ${className}Impl(entityContext);
           |  }
           |
-          |
           |  @Override
           |  public ValueEntityBase.Effect<? extends GeneratedMessageV3> handleCommand(
           |      Any command, Any state, CommandContext<Any> context) throws Throwable {
@@ -170,6 +169,16 @@ object ValueEntitySourceGenerator {
           |    } finally {
           |      entity.setCommandContext(Optional.empty;
           |    }
+          |  }
+          |  
+          |  @Override
+          |  public com.google.protobuf.any.Any emptyState() {
+          |    return com.google.protobuf.any.Any.apply(
+          |        AnySupport.DefaultTypeUrlPrefix()
+          |          + "/"
+          |          + ${outerClassAndState}.getDescriptor().getFullName(),
+          |        entity.emptyState().toByteString(),
+          |        UnknownFieldSet.empty());
           |  }
           |}""".stripMargin
     )
