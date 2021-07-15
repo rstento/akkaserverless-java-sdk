@@ -143,7 +143,7 @@ class ValueEntitySourceGeneratorSuite extends munit.FunSuite {
         |      ServiceOuterClass.getDescriptor().findServiceByName("MyService");
         |  public static final String entityType = "MyValueEntity";
         |
-        |  final MyServiceImpl entity;
+        |  private final MyServiceImpl entity;
         |  
         |  MyServiceHandler(ValueEntityContext entityContext) {
         |    this.entity = new MyServiceImpl(entityContext);

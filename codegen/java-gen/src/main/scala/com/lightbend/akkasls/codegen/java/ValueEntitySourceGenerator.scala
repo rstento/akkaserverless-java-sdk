@@ -136,7 +136,7 @@ object ValueEntitySourceGenerator {
           |      ${service.fqn.parent.javaOuterClassname}.getDescriptor().findServiceByName("${service.fqn.name}");
           |  public static final String entityType = "${entity.entityType}";
           |
-          |  final ${className}Impl entity;
+          |  private final ${className}Impl entity;
           |  
           |  ${className}Handler(ValueEntityContext entityContext) {
           |    this.entity = new ${className}Impl(entityContext);
