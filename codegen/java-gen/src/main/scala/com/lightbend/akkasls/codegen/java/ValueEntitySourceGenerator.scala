@@ -54,14 +54,14 @@ object ValueEntitySourceGenerator {
       `class`("public", s"$className extends $interfaceClassName") {
 
         """@SuppressWarnings("unused")""" <> line <>
-        "private final ValueEntityContext entityContext;" <> line <>
+        "private final String entityId;" <> line <>
         line <>
         constructor(
           "public",
           className,
-          List("ValueEntityContext" <+> "entityContext")
+          List("String" <+> "entityId")
         ) {
-          "this.entityContext = entityContext;"
+          "this.entityId = entityId;"
         } <> line <>
         line <>
         "@Override" <>
@@ -119,7 +119,10 @@ object ValueEntitySourceGenerator {
         "com.akkaserverless.javasdk.valueentity.CommandContext",
         "com.akkaserverless.javasdk.valueentity.ValueEntityBase",
         "com.akkaserverless.javasdk.valueentity.ValueEntityContext",
+        "com.google.protobuf.Any",
         "com.google.protobuf.Descriptors",
+        "com.google.protobuf.GeneratedMessageV3",
+        "java.util.Optional",
         "scalapb.UnknownFieldSet"
       )
     )
@@ -134,7 +137,7 @@ object ValueEntitySourceGenerator {
         s"""case "$methodName":
          |  return entity.${lowerFirst(methodName)}(
          |      parsedState,
-         |      ${inputType}.parseFrom(command.getValue));
+         |      ${inputType}.parseFrom(command.getValue()));
          |""".stripMargin
       }
 
@@ -145,7 +148,7 @@ object ValueEntitySourceGenerator {
           |$imports
           |
           |/** A value entity handler */
-          |public class ${className}Handler extends ValueEntityHandler {
+          |public class ${className}Handler implements ValueEntityHandler {
           |
           |  public static final Descriptors.ServiceDescriptor serviceDescriptor =
           |      ${service.fqn.parent.javaOuterClassname}.getDescriptor().findServiceByName("${service.fqn.name}");
@@ -153,8 +156,8 @@ object ValueEntitySourceGenerator {
           |
           |  private final ${className}Impl entity;
           |  
-          |  ${className}Handler(ValueEntityContext entityContext) {
-          |    this.entity = new ${className}Impl(entityContext);
+          |  public ${className}Handler(String entityId) {
+          |    this.entity = new ${className}Impl(entityId);
           |  }
           |
           |  @Override
@@ -185,7 +188,7 @@ object ValueEntitySourceGenerator {
           |                  + entity.getClass().toString());
           |      }
           |    } finally {
-          |      entity.setCommandContext(Optional.empty;
+          |      entity.setCommandContext(Optional.empty());
           |    }
           |  }
           |  
@@ -229,10 +232,7 @@ object ValueEntitySourceGenerator {
         val inputType = s"$serviceApiOuterClass.${cmd.inputType.name}"
         val outputType = qualifiedType(cmd.outputType)
 
-        s"""|public abstract Effect<$outputType> ${lowerFirst(methodName)}(
-            |  $outerClassAndState currentState,
-            |  $inputType ${lowerFirst(cmd.inputType.name)});
-            |""".stripMargin
+        s"public abstract Effect<$outputType> ${lowerFirst(methodName)}($outerClassAndState currentState, $inputType ${lowerFirst(cmd.inputType.name)});"
       }
 
     pretty(
@@ -242,7 +242,7 @@ object ValueEntitySourceGenerator {
           |$imports
           |
           |/** A value entity. */
-          |public abstract class AbstractMyService extends ValueEntityBase<$outerClassAndState> {
+          |public abstract class Abstract${className} extends ValueEntityBase<$outerClassAndState> {
           |
           |  ${Syntax.indent(methods, 2)}
           |

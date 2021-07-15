@@ -51,10 +51,10 @@ class ValueEntitySourceGeneratorSuite extends munit.FunSuite {
         |/** A value entity. */
         |public class MyServiceImpl extends AbstractMyService {
         |    @SuppressWarnings("unused")
-        |    private final ValueEntityContext entityContext;
+        |    private final String entityId;
         |    
-        |    public MyServiceImpl(ValueEntityContext entityContext) {
-        |        this.entityContext = entityContext;
+        |    public MyServiceImpl(String entityId) {
+        |        this.entityId = entityId;
         |    }
         |    
         |    @Override
@@ -99,13 +99,8 @@ class ValueEntitySourceGeneratorSuite extends munit.FunSuite {
         |/** A value entity. */
         |public abstract class AbstractMyService extends ValueEntityBase<EntityOuterClass.MyState> {
         |
-        |  public abstract Effect<Empty> set(
-        |    EntityOuterClass.MyState currentState,
-        |    ServiceOuterClass.SetValue setValue);
-        |
-        |  public abstract Effect<ServiceOuterClass.MyState> get(
-        |    EntityOuterClass.MyState currentState,
-        |    ServiceOuterClass.GetValue getValue);
+        |  public abstract Effect<Empty> set(EntityOuterClass.MyState currentState, ServiceOuterClass.SetValue setValue);
+        |  public abstract Effect<ServiceOuterClass.MyState> get(EntityOuterClass.MyState currentState, ServiceOuterClass.GetValue getValue);
         |
         |}
         |""".stripMargin
@@ -139,11 +134,14 @@ class ValueEntitySourceGeneratorSuite extends munit.FunSuite {
         |import com.akkaserverless.javasdk.valueentity.ValueEntityContext;
         |import com.example.service.persistence.EntityOuterClass;
         |import com.external.Empty;
+        |import com.google.protobuf.Any;
         |import com.google.protobuf.Descriptors;
+        |import com.google.protobuf.GeneratedMessageV3;
+        |import java.util.Optional;
         |import scalapb.UnknownFieldSet;
         |
         |/** A value entity handler */
-        |public class MyServiceHandler extends ValueEntityHandler {
+        |public class MyServiceHandler implements ValueEntityHandler {
         |
         |  public static final Descriptors.ServiceDescriptor serviceDescriptor =
         |      ServiceOuterClass.getDescriptor().findServiceByName("MyService");
@@ -151,8 +149,8 @@ class ValueEntitySourceGeneratorSuite extends munit.FunSuite {
         |
         |  private final MyServiceImpl entity;
         |  
-        |  MyServiceHandler(ValueEntityContext entityContext) {
-        |    this.entity = new MyServiceImpl(entityContext);
+        |  public MyServiceHandler(String entityId) {
+        |    this.entity = new MyServiceImpl(entityId);
         |  }
         |
         |  @Override
@@ -173,12 +171,12 @@ class ValueEntitySourceGeneratorSuite extends munit.FunSuite {
         |        case "Set":
         |          return entity.set(
         |              parsedState,
-        |              ServiceOuterClass.SetValue.parseFrom(command.getValue));
+        |              ServiceOuterClass.SetValue.parseFrom(command.getValue()));
         |
         |        case "Get":
         |          return entity.get(
         |              parsedState,
-        |              ServiceOuterClass.GetValue.parseFrom(command.getValue));
+        |              ServiceOuterClass.GetValue.parseFrom(command.getValue()));
         |
         |        default:
         |          throw new EntityExceptions.EntityException(
@@ -191,7 +189,7 @@ class ValueEntitySourceGeneratorSuite extends munit.FunSuite {
         |                  + entity.getClass().toString());
         |      }
         |    } finally {
-        |      entity.setCommandContext(Optional.empty;
+        |      entity.setCommandContext(Optional.empty());
         |    }
         |  }
         |  

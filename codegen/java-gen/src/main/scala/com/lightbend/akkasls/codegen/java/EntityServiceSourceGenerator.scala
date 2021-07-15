@@ -69,6 +69,20 @@ object EntityServiceSourceGenerator {
       )
     )
 
+    val handleClassName = className + "Handler"
+    val handlerSourcePath =
+      generatedSourceDirectory.resolve(packagePath.resolve(handleClassName + ".java"))
+
+    val _ = handlerSourcePath.getParent.toFile.mkdirs()
+    handlerSource(service, entity, packageName, className).foreach { doc =>
+      Files.write(
+        handlerSourcePath,
+        doc.layout.getBytes(
+          Charsets.UTF_8
+        )
+      )
+    }
+
     if (!implSourcePath.toFile.exists()) {
       // We're going to generate an entity - let's see if we can generate its test...
       val testClassName = className + "Test"
@@ -280,6 +294,18 @@ object EntityServiceSourceGenerator {
       case valueEntity: ModelBuilder.ValueEntity =>
         ValueEntitySourceGenerator.abstractValueEntity(service, valueEntity, packageName, className)
     }
+
+  private[codegen] def handlerSource(service: ModelBuilder.EntityService,
+                                     entity: ModelBuilder.Entity,
+                                     packageName: String,
+                                     className: String): Option[Document] = {
+    entity match {
+      case eventSourcedEntity: ModelBuilder.EventSourcedEntity =>
+        None
+      case valueEntity: ValueEntity =>
+        Some(ValueEntitySourceGenerator.valueEntityHandler(service, valueEntity, packageName, className))
+    }
+  }
 
   private[codegen] def abstractEventSourcedEntity(
       service: ModelBuilder.EntityService,
