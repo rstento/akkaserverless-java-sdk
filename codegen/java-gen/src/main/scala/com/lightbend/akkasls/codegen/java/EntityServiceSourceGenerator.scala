@@ -268,22 +268,6 @@ object EntityServiceSourceGenerator {
     )
   }
 
-  private[codegen] def generateImports(service: ModelBuilder.EntityService,
-                                       entity: ModelBuilder.ValueEntity,
-                                       packageName: String)(otherImports: Seq[String]): Doc = {
-    val messageTypes = service.commands.toSeq
-        .flatMap(command => Seq(command.inputType, command.outputType)) ++ Seq(entity.state.fqn)
-    val messageTypeImports = messageTypes
-      .filterNot(_.parent.javaPackage == packageName)
-      .map(typeImport)
-
-    val imports =
-      (messageTypeImports ++ otherImports).distinct.sorted
-        .map(pkg => text(s"import $pkg;"))
-
-    ssep(imports, line)
-  }
-
   private[codegen] def interfaceSource(
       service: ModelBuilder.EntityService,
       entity: ModelBuilder.Entity,

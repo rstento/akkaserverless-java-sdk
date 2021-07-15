@@ -112,14 +112,17 @@ object ValueEntitySourceGenerator {
       otherImports = Seq(
         "com.akkaserverless.javasdk.impl.AnySupport",
         "com.akkaserverless.javasdk.impl.EntityExceptions",
-        "com.akkaserverless.javasdk.impl.FailInvoked$",
+        "com.akkaserverless.javasdk.impl.valueentity.AdaptedCommandContextWithState",
         "com.akkaserverless.javasdk.lowlevel.ValueEntityHandler",
         "com.akkaserverless.javasdk.valueentity.CommandContext",
         "com.akkaserverless.javasdk.valueentity.ValueEntityBase",
+        "com.akkaserverless.javasdk.valueentity.ValueEntityContext",
+        "com.google.protobuf.Descriptors",
         "scalapb.UnknownFieldSet"
       )
     )
 
+    val outerClassAndState = s"${entity.state.fqn.parent.javaOuterClassname}.${entity.state.fqn.name}"
     pretty(
       managedCodeCommentString <> line <> // fixme: why this can't be in string interpolation?
       s"""|package $packageName;
@@ -129,24 +132,43 @@ object ValueEntitySourceGenerator {
           |/** A value entity handler */
           |public class ${className}Handler extends ValueEntityHandler {
           |
-          |  final $className entity;
+          |  public static final Descriptors.ServiceDescriptor serviceDescriptor =
+          |      ${service.fqn.parent.javaOuterClassname}.getDescriptor().findServiceByName("${service.fqn.name}");
+          |  public static final String entityType = "${entity.entityType}";
+          |
+          |  final ${className}Impl entity;
           |  
-          |  ${className}Handler() {
-          |    this.entity = new $className();
+          |  ${className}Handler(ValueEntityContext entityContext) {
+          |    this.entity = new ${className}Impl(entityContext);
           |  }
           |
           |
           |  @Override
           |  public ValueEntityBase.Effect<? extends GeneratedMessageV3> handleCommand(
           |      Any command, Any state, CommandContext<Any> context) throws Throwable {
+          |      
+          |    $outerClassAndState parsedState =
+          |      $outerClassAndState.parseFrom(state.getValue());
+          |
+          |    CommandContext<$outerClassAndState> adaptedContext =
+          |        new AdaptedCommandContextWithState(context, parsedState);
+          |
+          |    entity.setCommandContext(Optional.of(adaptedContext));
+          |    
           |    try {
-          |      return invoke(command, state, context);
-          |    } catch (Exception e) {
-          |      if (e.getClass().isAssignableFrom(FailInvoked$$.class)) {
-          |        throw e;
-          |      } else {
-          |        throw e.getCause();
+          |      switch (context.commandName()) {
+          |        default:
+          |          throw new EntityExceptions.EntityException(
+          |              context.entityId(),
+          |              context.commandId(),
+          |              context.commandName(),
+          |              "No command handler found for command ["
+          |                  + context.commandName()
+          |                  + "] on "
+          |                  + entity.getClass().toString());
           |      }
+          |    } finally {
+          |      entity.setCommandContext(Optional.empty;
           |    }
           |  }
           |}""".stripMargin
